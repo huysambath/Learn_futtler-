@@ -10,16 +10,29 @@ class UserProvider extends ChangeNotifier {
   List<User> users = [];
   bool isLoading = false;
   String? error;
+  int currentPage = 1;
+  String search = "";
+  bool hasMore = true;
 
-  Future<void> loadUsers() async {
+  Future<void> loadUsers({bool refresh = false}) async {
+    if (refresh) {
+      currentPage = 1;
+      users.clear();
+    }
+
     try {
       isLoading = true;
-      error = null;
       notifyListeners();
 
-      final data = await _repository.getUsers();
+      final data = await _repository.getUsers(
+        page: currentPage,
+        perPage: 10,
+        search: search,
+      );
 
-      users = data;
+      users.addAll(data);
+
+      currentPage++;
     } catch (e) {
       error = e.toString();
     } finally {

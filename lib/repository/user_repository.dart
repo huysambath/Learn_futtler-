@@ -6,9 +6,13 @@ import '../services/user_service.dart';
 
 class UserRepository {
   final UserService _service = UserService();
-
-  Future<List<User>> getUsers() async {
-    return await _service.getUsers();
+  
+  Future<List<User>> getUsers({
+    int page = 1,
+    int perPage = 10,
+    String? search,
+  }) {
+    return _service.getUsers(page: page, perPage: perPage, search: search);
   }
 
   Future<void> createUser(UserCreateRequest request) {

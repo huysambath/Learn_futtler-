@@ -7,16 +7,28 @@ import 'api_client.dart';
 class UserService {
   final ApiClient _apiClient = ApiClient();
 
-  Future<List<User>> getUsers() async {
-    final response = await _apiClient.get("/users");
+  Future<List<User>> getUsers({
+    int page = 1,
+    int perPage = 10,
+    String? search,
+  }) async {
+    String endpoint = "/users?paging_options[page]=$page&paging_options[per_page]=$perPage";
+
+    if (search != null && search.isNotEmpty) {
+      endpoint += "&filters[0][property]=u.user_name&filters[0][value]=${Uri.encodeQueryComponent('%$search%')}";
+    }
+
+    final response = await _apiClient.get(endpoint);
 
     if (response.statusCode == 200) {
       final json = jsonDecode(response.body);
-      final List users = json["data"]["users"];
+
+      final users = json["data"]["users"] as List? ?? [];
+
       return users.map((e) => User.fromJson(e)).toList();
     }
 
-    throw Exception("Failed to load users");
+    throw Exception("Failed to load users (${response.statusCode}): ${response.body}");
   }
 
   Future<void> createUser(UserCreateRequest request) async {

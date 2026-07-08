@@ -23,7 +23,6 @@ void _confirmDelete(BuildContext context, int id) {
             onPressed: () => Navigator.pop(context),
             child: const Text("Cancel"),
           ),
-
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(context);
@@ -39,26 +38,26 @@ void _confirmDelete(BuildContext context, int id) {
 }
 
 class _UserListScreenState extends State<UserListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
 
     Future.microtask(() {
-      context.read<UserProvider>().loadUsers();
+      context.read<UserProvider>().loadUsers(refresh: true);
     });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<UserProvider>();
-
-    if (provider.isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    if (provider.error != null) {
-      return Scaffold(body: Center(child: Text(provider.error!)));
-    }
 
     return Scaffold(
       appBar: AppBar(
@@ -71,40 +70,79 @@ class _UserListScreenState extends State<UserListScreen> {
                 context,
                 MaterialPageRoute(builder: (_) => const CreateUserScreen()),
               );
-              context.read<UserProvider>().loadUsers();
+
+              context.read<UserProvider>().loadUsers(refresh: true);
             },
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await context.read<UserProvider>().loadUsers();
-        },
-        child: ListView.builder(
-          itemCount: provider.users.length,
-          itemBuilder: (context, index) {
-            final user = provider.users[index];
-        
-            return ListTile(
-              title: Text(user.userName),
-              subtitle: Text(user.email),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => EditUserScreen(user: user),
-                  ),
-                );
-              },
-              trailing: IconButton(
-                icon: const Icon(Icons.delete, color: Colors.red),
-                onPressed: () {
-                  _confirmDelete(context, user.id);
-                },
+
+      body: Column(
+        children: [
+          /// Search Box
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              controller: _searchController,
+              decoration: const InputDecoration(
+                hintText: "Search user...",
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
               ),
-            );
-          },
-        ),
+              onChanged: (value) {
+                final provider = context.read<UserProvider>();
+                provider.search = value;
+
+                provider.loadUsers(refresh: true);
+              },
+            ),
+          ),
+
+          /// Loading
+          if (provider.isLoading && provider.users.isEmpty)
+            const Expanded(child: Center(child: CircularProgressIndicator()))
+          /// Error
+          else if (provider.error != null)
+            Expanded(child: Center(child: Text(provider.error!)))
+          /// User List
+          else
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  await context.read<UserProvider>().loadUsers(refresh: true);
+                },
+                child: ListView.builder(
+                  itemCount: provider.users.length,
+                  itemBuilder: (context, index) {
+                    final user = provider.users[index];
+
+                    return ListTile(
+                      title: Text(user.userName),
+                      subtitle: Text(user.email),
+
+                      onTap: () async {
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => EditUserScreen(user: user),
+                          ),
+                        );
+
+                        context.read<UserProvider>().loadUsers(refresh: true);
+                      },
+
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          _confirmDelete(context, user.id);
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
